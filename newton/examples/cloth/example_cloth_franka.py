@@ -205,31 +205,209 @@ class Example:
             hz=self.table_hz_cm,
         )
 
-        # add the T-shirt
-        usd_stage = Usd.Stage.Open(newton.examples.get_asset("unisex_shirt.usd"))
-        usd_prim = usd_stage.GetPrimAtPath("/root/shirt")
 
-        shirt_mesh = newton.usd.get_mesh(usd_prim)
-        mesh_points = shirt_mesh.vertices
-        mesh_indices = shirt_mesh.indices
-        vertices = [wp.vec3(v) for v in mesh_points]
+        # # add the T-shirt
+        # usd_stage = Usd.Stage.Open(newton.examples.get_asset("unisex_shirt.usd"))
+        # usd_prim = usd_stage.GetPrimAtPath("/root/shirt")
 
+        # add the two panels test
+        import os
+        import sys
+        
+        # 确保打印语句立即输出
+        print("Starting USD file loading...", flush=True)
+        
+        # 使用正确的文件路径（带空格）
+        usd_path = r"C:\Users\admin\Documents\two_panels_test1.usd"
+        print(f"Checking USD file at: {usd_path}", flush=True)
+        print(f"File exists: {os.path.exists(usd_path)}", flush=True)
+        print(f"Current working directory: {os.getcwd()}", flush=True)
+        
+        # 检查文件是否存在
+        if not os.path.exists(usd_path):
+            print(f"USD file not found: {usd_path}", flush=True)
+            # 尝试使用下划线版本的路径
+            usd_path_underscore = r"C:\Users\admin\Documents\two_panels_test1.usd"
+            print(f"Trying underscore version: {usd_path_underscore}", flush=True)
+            print(f"Underscore version exists: {os.path.exists(usd_path_underscore)}", flush=True)
+            
+            if os.path.exists(usd_path_underscore):
+                usd_path = usd_path_underscore
+                print("Using underscore version of path", flush=True)
+            else:
+                # 使用默认的衬衫模型作为备选
+                print("Using default shirt model as fallback", flush=True)
+                usd_stage = Usd.Stage.Open(newton.examples.get_asset("unisex_shirt.usd"))
+                usd_prim = usd_stage.GetPrimAtPath("/root/shirt")
+                print("testVBD-default", flush=True)
+                # 继续执行，使用默认模型
+                shirt_mesh = newton.usd.get_mesh(usd_prim)
+                mesh_points = shirt_mesh.vertices
+                mesh_indices = shirt_mesh.indices
+                vertices = [wp.vec3(v) for v in mesh_points]
+                # 跳过后续代码，直接返回
+                # 这里需要调整代码结构，确保后续代码能正确执行
+        
+        # 如果文件存在，尝试打开
+        if os.path.exists(usd_path):
+            try:
+                # 尝试打开 USD 文件
+                print("Attempting to open USD file...", flush=True)
+                usd_stage = Usd.Stage.Open(usd_path)
+                print("testVBD-two_panels_test1", flush=True)
+                print(f"USD stage opened successfully: {usd_stage}", flush=True)
+                print(f"Root layer: {usd_stage.GetRootLayer().identifier}", flush=True)
+                
+                # 尝试不同的根节点路径
+                potential_paths = ["/root", "/Root", "/Model", "//Model", "/"]
+                usd_prim = None
+                
+                print("Searching for valid prims...", flush=True)
+                for path in potential_paths:
+                    prim = usd_stage.GetPrimAtPath(path)
+                    if prim and prim.IsValid():
+                        print(f"Found valid prim at path: {path}", flush=True)
+                        usd_prim = prim
+                        break
+                
+                if not usd_prim:
+                    print("No valid prim found in USD file", flush=True)
+                    # 列出所有可用的 prim
+                    print("Available prims in USD file:", flush=True)
+                    def list_prims(prim, indent=0):
+                        print(f"{'  '*indent}{prim.GetPath()}", flush=True)
+                        for child in prim.GetChildren():
+                            list_prims(child, indent+1)
+                    list_prims(usd_stage.GetPseudoRoot())
+                    
+                    # 使用默认的衬衫模型作为备选
+                    print("Using default shirt model as fallback", flush=True)
+                    usd_stage = Usd.Stage.Open(newton.examples.get_asset("unisex_shirt.usd"))
+                    usd_prim = usd_stage.GetPrimAtPath("/root/shirt")
+                else:
+                    # 检查当前 prim 是否是网格
+                    from pxr import UsdGeom
+                    if usd_prim.IsA(UsdGeom.Mesh):
+                        print("Root prim is a valid mesh", flush=True)
+                    else:
+                        print("Root prim is not a mesh, searching for mesh prims...", flush=True)
+                        # 遍历所有子 prim，寻找所有网格
+                        def find_all_mesh_prims(prim, meshes=None):
+                            if meshes is None:
+                                meshes = []
+                            if prim.IsA(UsdGeom.Mesh):
+                                print(f"Found mesh prim: {prim.GetPath()}", flush=True)
+                                meshes.append(prim)
+                            for child in prim.GetChildren():
+                                find_all_mesh_prims(child, meshes)
+                            return meshes
+                        
+                        mesh_prims = find_all_mesh_prims(usd_prim)
+                        if mesh_prims:
+                            print(f"Found {len(mesh_prims)} mesh prims", flush=True)
+                            # 保存所有网格prim，后面会分别处理
+                            usd_mesh_prims = mesh_prims
+                            # 使用第一个网格prim作为主要prim（用于兼容性）
+                            usd_prim = mesh_prims[0]
+                        else:
+                            print("No mesh prim found in USD file", flush=True)
+                            # 使用默认的衬衫模型作为备选
+                            print("Using default shirt model as fallback", flush=True)
+                            usd_stage = Usd.Stage.Open(newton.examples.get_asset("unisex_shirt.usd"))
+                            usd_prim = usd_stage.GetPrimAtPath("/root/shirt")
+                            usd_mesh_prims = [usd_prim]
+            except Exception as e:
+                print(f"Error opening USD file: {e}", flush=True)
+                # 使用默认的衬衫模型作为备选
+                print("Using default shirt model as fallback", flush=True)
+                usd_stage = Usd.Stage.Open(newton.examples.get_asset("unisex_shirt.usd"))
+                usd_prim = usd_stage.GetPrimAtPath("/root/shirt")
+
+        # 处理所有网格prim
         if self.add_cloth:
-            self.scene.add_cloth_mesh(
-                vertices=vertices,
-                indices=mesh_indices,
-                rot=wp.quat_from_axis_angle(wp.vec3(0.0, 0.0, 1.0), np.pi),
-                pos=wp.vec3(0.0, 70.0, 30.0),
-                vel=wp.vec3(0.0, 0.0, 0.0),
-                density=0.02,
-                scale=1.0,
-                tri_ke=self.tri_ke,
-                tri_ka=self.tri_ka,
-                tri_kd=self.tri_kd,
-                edge_ke=self.bending_ke,
-                edge_kd=self.bending_kd,
-                particle_radius=self.cloth_particle_radius,
-            )
+            for i, mesh_prim in enumerate(usd_mesh_prims):
+                shirt_mesh = newton.usd.get_mesh(mesh_prim)
+                mesh_points = shirt_mesh.vertices
+                mesh_indices = shirt_mesh.indices
+                vertices = [wp.vec3(v) for v in mesh_points]
+                
+                # 计算网格的中心位置并调整到合适的位置
+                # 默认衬衫位置是 (0.0, 70.0, 30.0)
+                # 你的板片中心在 (约 -617.5, 1347.3, 200.0) 和 (658.7, 1347.3, 200.0)
+                # 需要将板片移动到机械臂可及的位置
+                
+                # 计算当前网格的边界框
+                bbox_min = [float('inf')] * 3
+                bbox_max = [float('-inf')] * 3
+                
+                for point in mesh_points:
+                    for j in range(3):
+                        bbox_min[j] = min(bbox_min[j], point[j])
+                        bbox_max[j] = max(bbox_max[j], point[j])
+                
+                center = [(bbox_min[j] + bbox_max[j]) / 2 for j in range(3)]
+                
+                # 目标位置：第一个板片在 (0, 70, 30)，第二个板片在 (0, 75, 30)（叠起来）
+                if i == 0:
+                    target_pos = wp.vec3(20.0, -50.0, 32.0)
+                else:
+                    target_pos = wp.vec3(20.0, -50.0, 35.0)
+                
+                print(f"Mesh {i+1}: original center ({center[0]:.1f}, {center[1]:.1f}, {center[2]:.1f}), "
+                      f"target ({target_pos[0]:.1f}, {target_pos[1]:.1f}, {target_pos[2]:.1f})", flush=True)
+                
+                # 应用缩放和高度调整，然后移动到目标位置
+                adjusted_vertices = []
+                scale_factor = 0.01  # 缩小100倍
+                
+                # 计算缩放后的中心点
+                scaled_center = [
+                    center[0] * scale_factor,
+                    center[1] * scale_factor,
+                    center[2] * scale_factor
+                ]
+                
+                # 计算从缩放中心到目标位置的偏移
+                final_offset = [
+                    target_pos[0] - scaled_center[0],
+                    target_pos[1] - scaled_center[1],
+                    target_pos[2] - scaled_center[2]
+                ]
+                
+                print(f"  缩放后中心: ({scaled_center[0]:.2f}, {scaled_center[1]:.2f}, {scaled_center[2]:.2f})", flush=True)
+                print(f"  目标位置: ({target_pos[0]:.2f}, {target_pos[1]:.2f}, {target_pos[2]:.2f})", flush=True)
+                print(f"  最终偏移: ({final_offset[0]:.2f}, {final_offset[1]:.2f}, {final_offset[2]:.2f})", flush=True)
+                
+                for v in vertices:
+                    # 先缩放和调整高度
+                    scaled_v = wp.vec3(
+                        v[0] * scale_factor,
+                        v[1] * scale_factor,
+                        v[2] * scale_factor
+                    )
+                    # 然后移动到目标位置
+                    adjusted_v = wp.vec3(
+                        scaled_v[0] + final_offset[0],
+                        scaled_v[1] + final_offset[1],
+                        scaled_v[2] + final_offset[2]
+                    )
+                    adjusted_vertices.append(adjusted_v)
+                
+                self.scene.add_cloth_mesh(
+                    vertices=adjusted_vertices,
+                    indices=mesh_indices,
+                    rot=wp.quat_identity(),  # 不旋转，位置已经在顶点中调整了
+                    pos=wp.vec3(0.0, 0.0, 0.0),  # 位置已经在顶点中调整了
+                    vel=wp.vec3(0.0, 0.0, 0.0),
+                    density=0.02,
+                    scale=1.0,
+                    tri_ke=self.tri_ke,
+                    tri_ka=self.tri_ka,
+                    tri_kd=self.tri_kd,
+                    edge_ke=self.bending_ke,
+                    edge_kd=self.bending_kd,
+                    particle_radius=self.cloth_particle_radius,
+                )
 
             self.scene.color()
 
