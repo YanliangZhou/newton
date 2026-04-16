@@ -4,9 +4,9 @@
 
 ### Added
 
-- Add `--demo-cloth-panel-rng-entropy` and `DemoScenarioConfig.cloth_panel_rng_use_entropy` on `training_v1_0` to sample procedural cloth panel RNG seeds from OS entropy each process start (optional; default remains `1000 + world_index`).
-- Add `--demo-cloth-panel-fixed-nx` / `--demo-cloth-panel-fixed-ny` and `DemoScenarioConfig.cloth_panel_fixed_grid_nx` / `cloth_panel_fixed_grid_ny` on `training_v1_0` for the same vertex counts on every panel (optional; default remains random `nx`/`ny` per panel).
-- Add `--demo-cloth-panel-target-cell-cm` and `DemoScenarioConfig.cloth_panel_target_cell_cm` on `training_v1_0` to choose `nx`/`ny` from each panel's width/height so mean edge spacing is approximately uniform (optional; incompatible with fixed nx/ny).
+- Add `--demo-cloth-panel-rng-entropy` and `DemoScenarioConfig.cloth_panel_rng_use_entropy` on `training_v1_1` to sample procedural cloth panel RNG seeds from OS entropy each process start (optional; default remains `1000 + world_index`).
+- Add `--demo-cloth-panel-fixed-nx` / `--demo-cloth-panel-fixed-ny` and `DemoScenarioConfig.cloth_panel_fixed_grid_nx` / `cloth_panel_fixed_grid_ny` on `training_v1_1` for the same vertex counts on every panel (optional; default remains random `nx`/`ny` per panel).
+- Add `--demo-cloth-panel-target-cell-cm` and `DemoScenarioConfig.cloth_panel_target_cell_cm` on `training_v1_1` to choose `nx`/`ny` from each panel's width/height so mean edge spacing is approximately uniform (optional; incompatible with fixed nx/ny).
 - Add repeatable `--warp-config KEY=VALUE` CLI option for overriding `warp.config` attributes when running examples
 - Add 3D texture-based SDF, replacing NanoVDB volumes in the mesh-mesh collision pipeline for improved performance and CPU compatibility.
 - Parse URDF joint `limit effort="..."` values and propagate them to imported revolute and prismatic joint `effort_limit` settings
@@ -42,7 +42,7 @@
 
 ### Changed
 
-- Rename cloth batch example module to `example_training_v1_0` (run as `python -m newton.examples training_v1_0`). Migrate `ClothFrankaBatchDemoApi` to `TrainingDemoV1Api` and `run_cloth_franka_batch_demo` to `run_training_v1_demo`; JSON schema ids and default metadata basename updated accordingly. Replace `CLOTH_FRANKA_BATCH_DEMO.md` with `TRAINING_V1_0_DEMO.md`.
+- Rename cloth batch example module to `example_training_v1_1` (run as `python -m newton.examples training_v1_1`). Migrate `ClothFrankaBatchDemoApi` to `TrainingDemoV1_1Api` and `run_cloth_franka_batch_demo` to `run_training_v1_1_demo`; JSON schema ids and default metadata basename updated accordingly. Replace `CLOTH_FRANKA_BATCH_DEMO.md` with `TRAINING_V1_1_DEMO.md`.
 - Switch mesh-SDF collision from triangle-based gradient descent to edge-based Brent's method to reduce contact jitter
 - Unify heightfield and mesh collision pipeline paths; the separate `heightfield_midphase_kernel` and `shape_pairs_heightfield` buffer are removed in favor of the shared mesh midphase
 - Replace per-shape `Model.shape_heightfield_data` / `Model.heightfield_elevation_data` with compact `Model.shape_heightfield_index` / `Model.heightfield_data` / `Model.heightfield_elevations`, matching the SDF indirection pattern

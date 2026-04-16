@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ###########################################################################
-# Training scenario v1.0 (multi-world cloth + manipulator batch)
+# Training scenario v1.1 (multi-world cloth + manipulator batch)
 #
 # Evolved from ``example_cloth_franka.py``: ``N`` independent worlds (default 100) on a
 # configurable grid—each with one arm, one table, one procedural cloth panel—and shared
-# batched Cartesian control. File name ``example_training_v1_0.py`` (CLI short name
-# ``training_v1_0``): Python module names cannot contain ``.``, so ``v1.0`` is encoded as
-# ``v1_0`` in the filename.
+# batched Cartesian control. File name ``example_training_v1_1.py`` (CLI short name
+# ``training_v1_1``): Python module names cannot contain ``.``, so ``v1.1`` is encoded as
+# ``v1_1`` in the filename.
 #
 # Main features:
 #   - One articulation per world (URDF from :func:`demo_arm_pool`)
@@ -29,8 +29,8 @@
 #     table until you branch on ``animation_id`` (or similar) in code.
 #
 # Demo bundle (single-file API for early experiments; see ``__all__`` and
-# :class:`TrainingDemoV1Api` for a stable import surface when vendoring).
-# Human-oriented usage (CLI, custom URDF / animation pools): ``TRAINING_V1_0_DEMO.md``
+# :class:`TrainingDemoV1_1Api` for a stable import surface when vendoring).
+# Human-oriented usage (CLI, custom URDF / animation pools): ``TRAINING_V1_1_DEMO.md``
 # in this directory.
 #   - Edit :data:`DEMO_SCENARIO` or pass ``--demo-world-count`` / ``--demo-grid-*``;
 #     use :func:`make_demo_scenario` when constructing from code.
@@ -89,7 +89,7 @@ from newton.solvers import SolverFeatherstone, SolverVBD
 # Demo scenario + recording (all configuration lives in this file)
 # ---------------------------------------------------------------------------
 #
-# Stable imports for downstream packages: see ``__all__`` and :class:`TrainingDemoV1Api`.
+# Stable imports for downstream packages: see ``__all__`` and :class:`TrainingDemoV1_1Api`.
 
 
 @dataclass
@@ -146,7 +146,7 @@ class DemoScenarioConfig:
 class DemoRecordingPaths:
     usd_path: str | None = None
     """USD output; typically from ``--output-path`` when using the USD viewer."""
-    metadata_json_path: str = "example_training_v1_0_meta.json"
+    metadata_json_path: str = "example_training_v1_1_meta.json"
     """Base path for sidecar JSON; actual files are ``{stem}_world_{i:04d}{suffix}``."""
 
     def resolved_metadata_path(self) -> Path:
@@ -832,7 +832,7 @@ class Example:
 
         if isinstance(self.viewer, ViewerUSD) and not self.demo_config.write_usd:
             print(
-                "[training_v1_0] ViewerUSD with write_usd=False: only begin/end_frame per tick "
+                "[training_v1_1] ViewerUSD with write_usd=False: only begin/end_frame per tick "
                 "(no log_state); output USD stays nearly empty.",
                 flush=True,
             )
@@ -852,7 +852,7 @@ class Example:
         ]
         if getattr(m, "spring_count", 0):
             parts.append(f"springs={m.spring_count}")
-        line = "[training_v1_0] scene: " + " | ".join(parts)
+        line = "[training_v1_1] scene: " + " | ".join(parts)
         if self.add_cloth and self.per_world_cloth_meta:
             nxs = [int(meta["grid_nx"]) for meta in self.per_world_cloth_meta]
             nys = [int(meta["grid_ny"]) for meta in self.per_world_cloth_meta]
@@ -1299,7 +1299,7 @@ class Example:
         if elapsed >= 1.0:
             fps = self._demo_fps_frame_count / elapsed
             print(
-                f"[training_v1_0] loop FPS: {fps:.2f}  ({self._demo_fps_frame_count} frames in {elapsed:.2f}s)"
+                f"[training_v1_1] loop FPS: {fps:.2f}  ({self._demo_fps_frame_count} frames in {elapsed:.2f}s)"
                 f"  sim_time={self.sim_time:.3f}s",
                 flush=True,
             )
@@ -1419,7 +1419,7 @@ class Example:
         cloth = self.per_world_cloth_meta[w] if self.add_cloth and w < len(self.per_world_cloth_meta) else None
 
         return {
-            "schema": "newton.examples.training_v1_0/world/v2",
+            "schema": "newton.examples.training_v1_1/world/v2",
             "intent": "Rebuild procedural cloth + layout; pair with USD for full dynamic replay.",
             "world_index": w,
             "world_count": self.num_envs,
@@ -1468,7 +1468,7 @@ class Example:
         """Small manifest listing per-world sidecar paths (full data is in each world JSON)."""
         p = self.demo_recording_paths
         return {
-            "schema": "newton.examples.training_v1_0/aggregate/v1",
+            "schema": "newton.examples.training_v1_1/aggregate/v1",
             "world_count": self.num_envs,
             "usd_path": p.usd_path,
             "per_world_metadata_paths": [str(p.per_world_metadata_path(w).resolve()) for w in range(self.num_envs)],
@@ -1478,7 +1478,7 @@ class Example:
 def write_demo_metadata(example: Example, paths: DemoRecordingPaths | None = None) -> list[Path]:
     """Write one sidecar JSON per world next to the configured base metadata path."""
     if not example.demo_config.write_metadata_json:
-        print("[training_v1_0] skipped metadata JSON (write_metadata_json=False)", flush=True)
+        print("[training_v1_1] skipped metadata JSON (write_metadata_json=False)", flush=True)
         return []
     paths = paths or example.demo_recording_paths
     paths.resolved_metadata_path().parent.mkdir(parents=True, exist_ok=True)
@@ -1496,7 +1496,7 @@ def write_demo_metadata(example: Example, paths: DemoRecordingPaths | None = Non
     return written
 
 
-def run_training_v1_demo(
+def run_training_v1_1_demo(
     *,
     parser_defaults: dict[str, object] | None = None,
 ) -> Example:
@@ -1518,13 +1518,13 @@ def run_training_v1_demo(
     return example
 
 
-class TrainingDemoV1Api:
+class TrainingDemoV1_1Api:
     """Explicit public surface for this module (vendor-friendly names).
 
     Wraps configuration, CLI registration, asset assignment, and metadata export.
     Prefer importing this class when exposing a stable API from a repackaged wheel.
 
-    See ``TRAINING_V1_0_DEMO.md`` (same directory) for CLI examples, programmatic
+    See ``TRAINING_V1_1_DEMO.md`` (same directory) for CLI examples, programmatic
     entry points, and how robotics teams can plug in custom URDFs (``demo_arm_pool``)
     versus animation metadata (``demo_animation_pool`` / future motion wiring).
 
@@ -1546,7 +1546,7 @@ class TrainingDemoV1Api:
     default_animation_pool = staticmethod(demo_animation_pool)
     write_metadata_json = staticmethod(write_demo_metadata)
     build_cli_parser = staticmethod(build_demo_cli_parser)
-    run_full_demo = staticmethod(run_training_v1_demo)
+    run_full_demo = staticmethod(run_training_v1_1_demo)
     default_grid_for_world_count = staticmethod(default_demo_grid_for_world_count)
     should_run_render = staticmethod(demo_should_run_render)
     viewer_writes_frame_log = staticmethod(demo_viewer_writes_frame_log)
@@ -1560,7 +1560,7 @@ class TrainingDemoV1Api:
 
 
 __all__ = [
-    "TrainingDemoV1Api",
+    "TrainingDemoV1_1Api",
     "DEMO_RECORDING",
     "DEMO_SCENARIO",
     "DemoAssetSpec",
@@ -1582,10 +1582,10 @@ __all__ = [
     "demo_should_run_render",
     "demo_viewer_writes_frame_log",
     "make_demo_scenario",
-    "run_training_v1_demo",
+    "run_training_v1_1_demo",
     "write_demo_metadata",
 ]
 
 
 if __name__ == "__main__":
-    run_training_v1_demo(parser_defaults={"num_frames": 3850})
+    run_training_v1_1_demo(parser_defaults={"num_frames": 3850})

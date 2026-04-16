@@ -1,10 +1,10 @@
-# Training scenario v1.0 (`training_v1_0`)
+# Training scenario v1.1 (`training_v1_1`)
 
 Multi-world batch: each world has a table, procedural cloth, and one manipulator from `demo_arm_pool()`, with optional USD recording and per-world JSON metadata.
 
-**Module:** `newton.examples.cloth.example_training_v1_0` (file `example_training_v1_0.py`). The CLI short name is `training_v1_0` (Python module names cannot contain `.`, so version **v1.0** is encoded as **`v1_0`** in the filename).
+**Module:** `newton.examples.cloth.example_training_v1_1` (file `example_training_v1_1.py`). The CLI short name is `training_v1_1` (Python module names cannot contain `.`, so version **v1.1** is encoded as **`v1_1`** in the filename).
 
-The stable import surface is **`TrainingDemoV1Api`** in that module.
+The stable import surface is **`TrainingDemoV1_1Api`** in that module.
 
 ## Run from the CLI
 
@@ -13,13 +13,13 @@ All **command-line examples** below include **`--demo-cloth-panel-target-cell-cm
 Examples are discovered from the filename `example_<name>.py`; this one is:
 
 ```text
-training_v1_0
+training_v1_1
 ```
 
 Typical invocation (recommended, uses `uv` so dependencies match the repo):
 
 ```bash
-uv run --extra examples -m newton.examples training_v1_0 \
+uv run --extra examples -m newton.examples training_v1_1 \
   --viewer usd \
   --output-path ./out/sim.usd \
   --demo-metadata-json ./out/meta.json \
@@ -33,7 +33,7 @@ uv run --extra examples -m newton.examples training_v1_0 \
 Same flags with the **`python`** launcher (after installing Newton into the active environment, for example `uv sync --extra examples` then `uv run python` or a venv’s `python`):
 
 ```bash
-python -m newton.examples training_v1_0 \
+python -m newton.examples training_v1_1 \
   --viewer usd \
   --output-path ./out/sim.usd \
   --demo-metadata-json ./out/meta.json \
@@ -47,7 +47,7 @@ python -m newton.examples training_v1_0 \
 On Windows **cmd.exe**, use caret line continuation instead of backslashes:
 
 ```bat
-python -m newton.examples training_v1_0 ^
+python -m newton.examples training_v1_1 ^
   --viewer usd ^
   --output-path .\out\sim.usd ^
   --demo-metadata-json .\out\meta.json ^
@@ -58,7 +58,7 @@ python -m newton.examples training_v1_0 ^
   --num-frames 1000
 ```
 
-Useful **`--demo-*`** flags (registered by `TrainingDemoV1Api.add_cli_arguments` / `build_demo_cli_parser`):
+Useful **`--demo-*`** flags (registered by `TrainingDemoV1_1Api.add_cli_arguments` / `build_demo_cli_parser`):
 
 | Flag | Role |
 |------|------|
@@ -80,14 +80,14 @@ Standard Newton flags still apply (`--viewer`, `--output-path`, `--num-frames`, 
 ## Programmatic API (short)
 
 ```python
-import newton.examples.cloth.example_training_v1_0 as batch
+import newton.examples.cloth.example_training_v1_1 as batch
 
 cfg = batch.make_demo_scenario(16, cloth_mesh_density_scale=1.0, cloth_panel_target_cell_cm=2.5)
 paths = batch.DemoRecordingPaths(usd_path="out.usd", metadata_json_path="meta.json")
-# Or: batch.TrainingDemoV1Api.make_scenario(...)
+# Or: batch.TrainingDemoV1_1Api.make_scenario(...)
 ```
 
-`TrainingDemoV1Api` exposes aliases: `ScenarioConfig`, `AssetSpec`, `Simulation` (= `Example`), `run_full_demo`, `assign_world_assets`, etc.
+`TrainingDemoV1_1Api` exposes aliases: `ScenarioConfig`, `AssetSpec`, `Simulation` (= `Example`), `run_full_demo`, `assign_world_assets`, etc.
 
 ---
 
@@ -113,7 +113,7 @@ def demo_arm_pool() -> list[DemoAssetSpec]:
 
 **Assignment:** `assign_demo_world_assets` draws one arm per world from this list (with replacement if the pool is shorter than `world_count`). Reproducibility is controlled by **`DemoScenarioConfig.asset_assignment_seed`** (CLI does not override it today; set it in code or replace `DEMO_SCENARIO`). Cloth panel randomness is separate: use **`DemoScenarioConfig.cloth_panel_rng_use_entropy`** or **`--demo-cloth-panel-rng-entropy`** so each training run does not reuse the same default cloth seeds (`1000 + world_index`).
 
-After this edit, run the **same** `python -m newton.examples training_v1_0 ...` command as above; there is **no** separate `--arm-urdf` flag in the stock example.
+After this edit, run the **same** `python -m newton.examples training_v1_1 ...` command as above; there is **no** separate `--arm-urdf` flag in the stock example.
 
 **Important simulation caveats (read before production use):**
 
@@ -147,7 +147,7 @@ def demo_animation_pool() -> list[DemoAssetSpec]:
 Typical **headless USD + JSON** batch for your assets (Windows PowerShell style):
 
 ```powershell
-uv run --extra examples -m newton.examples training_v1_0 `
+uv run --extra examples -m newton.examples training_v1_1 `
   --viewer usd `
   --output-path "C:\data\batch\sim.usd" `
   --demo-metadata-json "C:\data\batch\meta.json" `
@@ -163,7 +163,7 @@ uv run --extra examples -m newton.examples training_v1_0 `
 Equivalent using **`python -m`** (same venv / install as above):
 
 ```powershell
-python -m newton.examples training_v1_0 `
+python -m newton.examples training_v1_1 `
   --viewer usd `
   --output-path "C:\data\batch\sim.usd" `
   --demo-metadata-json "C:\data\batch\meta.json" `
@@ -183,8 +183,8 @@ Paths in **`demo_arm_pool()`** must be valid on the machine that runs this comma
 
 ## Metadata layout (brief)
 
-- JSON schemas use identifiers such as `newton.examples.training_v1_0/world/v2` and `.../aggregate/v1`.
-- Default base metadata filename in code: `example_training_v1_0_meta.json` (override with `--demo-metadata-json`).
+- JSON schemas use identifiers such as `newton.examples.training_v1_1/world/v2` and `.../aggregate/v1`.
+- Default base metadata filename in code: `example_training_v1_1_meta.json` (override with `--demo-metadata-json`).
 - Each world file lists **`scenario`** (full `DemoScenarioConfig` as dict), **`this_world`** (offsets, table, assigned **`arm_id` / `animation_id`** and pool indices), **`cloth`**, **`robot`**, **`sim`**, etc.
 
 Use these JSON files together with USD for replay or dataset documentation.
