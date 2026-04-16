@@ -36,6 +36,8 @@
 #     use :func:`make_demo_scenario` when constructing from code.
 #   - ``--demo-cloth-grid-density S`` scales random panel subdivisions (``nx``, ``ny``);
 #     still independent random counts per axis; trapezoid/skew use the same ``(u,v)`` grid.
+#   - ``--demo-cloth-panel-rng-entropy`` draws each world's cloth panel RNG seed from OS
+#     entropy at startup (different procedural cloth each run; not bit-reproducible).
 #   - ``--demo-no-display`` turns off interactive viewers (GL / Viser / Rerun);
 #     use ``--viewer usd --output-path …`` to record each frame to USD (default).
 #     Use ``--no-demo-write-usd`` to keep ``ViewerUSD`` (frame count / FPS) but skip
@@ -66,6 +68,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import secrets
 import time
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
@@ -115,6 +118,28 @@ class DemoScenarioConfig:
     cloth_grid_ny_min: int = 14
     cloth_grid_ny_max: int = 46
     """Inclusive bounds for random ``ny`` before :attr:`cloth_mesh_density_scale` is applied."""
+    cloth_panel_rng_use_entropy: bool = False
+    """If ``True``, each world's cloth panel NumPy RNG seed is sampled from OS entropy at
+    :class:`Example` construction (different procedural cloth each process start; not
+    reproducible from seed alone). If ``False``, seeds are ``1000 + world_index`` (stable
+    across runs for the same ``world_count``).
+    """
+    cloth_panel_fixed_grid_nx: int | None = None
+    """If set together with :attr:`cloth_panel_fixed_grid_ny`, every panel uses the **same**
+    vertex counts ``nx``×``ny`` (independent of each panel's random width/height). This does
+    **not** keep physical cell size uniform across panels. For that, use
+    :attr:`cloth_panel_target_cell_cm` instead. Base counts are multiplied by
+    :attr:`cloth_mesh_density_scale` (rounded, clamped to at least 4 per axis).
+    """
+    cloth_panel_fixed_grid_ny: int | None = None
+    """Paired with :attr:`cloth_panel_fixed_grid_nx`; see that field."""
+    cloth_panel_target_cell_cm: float | None = None
+    """If set, ``nx`` and ``ny`` are chosen from each panel's random ``width`` / ``height`` so
+    mean edge spacing along the panel axes is approximately this value (centimeters in this
+    example), then clamped to at most the scaled ``cloth_grid_*_max`` caps. Mutually exclusive
+    with :attr:`cloth_panel_fixed_grid_nx` / :attr:`cloth_panel_fixed_grid_ny`. Finer cells when
+    :attr:`cloth_mesh_density_scale` is larger (target is divided by the scale).
+    """
 
 
 @dataclass
@@ -209,6 +234,28 @@ def default_demo_grid_for_world_count(world_count: int) -> tuple[int, int]:
     return r, world_count // r
 
 
+def _validate_fixed_cloth_panel_grid(nx: int | None, ny: int | None) -> None:
+    if (nx is None) ^ (ny is None):
+        raise ValueError("Set both cloth_panel_fixed_grid_nx and cloth_panel_fixed_grid_ny, or neither.")
+    if nx is None:
+        return
+    if nx < 4 or ny < 4:
+        raise ValueError("cloth_panel_fixed_grid_nx and cloth_panel_fixed_grid_ny must be >= 4.")
+
+
+def _validate_demo_cloth_panel_resolution(cfg: DemoScenarioConfig) -> None:
+    """Reject incompatible cloth panel resolution settings."""
+    _validate_fixed_cloth_panel_grid(cfg.cloth_panel_fixed_grid_nx, cfg.cloth_panel_fixed_grid_ny)
+    if cfg.cloth_panel_target_cell_cm is not None:
+        if cfg.cloth_panel_fixed_grid_nx is not None:
+            raise ValueError(
+                "Do not set cloth_panel_target_cell_cm together with cloth_panel_fixed_grid_nx/ny."
+            )
+        x = float(cfg.cloth_panel_target_cell_cm)
+        if not math.isfinite(x) or x <= 0.0:
+            raise ValueError("cloth_panel_target_cell_cm must be a positive finite float when set.")
+
+
 def make_demo_scenario(
     world_count: int,
     *,
@@ -223,6 +270,10 @@ def make_demo_scenario(
     cloth_grid_nx_max: int | None = None,
     cloth_grid_ny_min: int | None = None,
     cloth_grid_ny_max: int | None = None,
+    cloth_panel_rng_use_entropy: bool | None = None,
+    cloth_panel_fixed_grid_nx: int | None = None,
+    cloth_panel_fixed_grid_ny: int | None = None,
+    cloth_panel_target_cell_cm: float | None = None,
 ) -> DemoScenarioConfig:
     """Build a :class:`DemoScenarioConfig` for an arbitrary world count (programmatic API).
 
@@ -237,8 +288,14 @@ def make_demo_scenario(
         cloth_grid_nx_max: Optional override for random ``nx`` upper bound.
         cloth_grid_ny_min: Optional override for random ``ny`` lower bound.
         cloth_grid_ny_max: Optional override for random ``ny`` upper bound.
+        cloth_panel_rng_use_entropy: If set, override :attr:`DemoScenarioConfig.cloth_panel_rng_use_entropy`.
+        cloth_panel_fixed_grid_nx: If set, override :attr:`DemoScenarioConfig.cloth_panel_fixed_grid_nx`
+            (must set ``cloth_panel_fixed_grid_ny`` too).
+        cloth_panel_fixed_grid_ny: If set, override :attr:`DemoScenarioConfig.cloth_panel_fixed_grid_ny`.
+        cloth_panel_target_cell_cm: If set, override :attr:`DemoScenarioConfig.cloth_panel_target_cell_cm`.
     """
     b = base or DEMO_SCENARIO
+    _validate_fixed_cloth_panel_grid(cloth_panel_fixed_grid_nx, cloth_panel_fixed_grid_ny)
     if (grid_rows is None) ^ (grid_cols is None):
         raise ValueError("Set both grid_rows and grid_cols, or neither.")
     if grid_rows is None:
@@ -264,6 +321,20 @@ def make_demo_scenario(
         cfg = replace(cfg, cloth_grid_ny_min=cloth_grid_ny_min)
     if cloth_grid_ny_max is not None:
         cfg = replace(cfg, cloth_grid_ny_max=cloth_grid_ny_max)
+    if cloth_panel_rng_use_entropy is not None:
+        cfg = replace(cfg, cloth_panel_rng_use_entropy=bool(cloth_panel_rng_use_entropy))
+    if cloth_panel_fixed_grid_nx is not None:
+        cfg = replace(
+            cfg,
+            cloth_panel_fixed_grid_nx=cloth_panel_fixed_grid_nx,
+            cloth_panel_fixed_grid_ny=cloth_panel_fixed_grid_ny,
+        )
+    if cloth_panel_target_cell_cm is not None:
+        x = float(cloth_panel_target_cell_cm)
+        if not math.isfinite(x) or x <= 0.0:
+            raise ValueError("cloth_panel_target_cell_cm must be a positive finite float when set.")
+        cfg = replace(cfg, cloth_panel_target_cell_cm=x)
+    _validate_demo_cloth_panel_resolution(cfg)
     return cfg
 
 
@@ -301,9 +372,47 @@ def add_demo_scenario_args(parser) -> None:
         default=None,
         metavar="S",
         help=(
-            "Scale cloth panel subdivisions: nx/ny are still random (and can differ), but their "
-            "ranges from cloth_grid_n* are multiplied by S (e.g. 0.5 coarser, 2.0 finer). "
-            "Applies to rectangle, trapezoid, and skewed panels (same parametric grid)."
+            "Scale cloth panel subdivisions: multiplies random nx/ny bounds from cloth_grid_n*, "
+            "divides --demo-cloth-panel-target-cell-cm target edge length, or multiplies fixed "
+            "--demo-cloth-panel-fixed-nx/ny base counts when those are set."
+        ),
+    )
+    parser.add_argument(
+        "--demo-cloth-panel-target-cell-cm",
+        type=float,
+        default=None,
+        metavar="H",
+        help=(
+            "Pick nx/ny from each panel's random width/height so mean quad edge length ~H cm along "
+            "each axis (same H all worlds; nx/ny vary with panel size). Capped by scaled "
+            "cloth_grid_*_max. Incompatible with --demo-cloth-panel-fixed-nx/ny."
+        ),
+    )
+    parser.add_argument(
+        "--demo-cloth-panel-fixed-nx",
+        type=int,
+        default=None,
+        metavar="NX",
+        help=(
+            "Force the same vertex nx on every panel (pair with --demo-cloth-panel-fixed-ny); "
+            "cell size in cm still varies with random panel width/height. For ~uniform cell size, "
+            "use --demo-cloth-panel-target-cell-cm instead."
+        ),
+    )
+    parser.add_argument(
+        "--demo-cloth-panel-fixed-ny",
+        type=int,
+        default=None,
+        metavar="NY",
+        help="Same as --demo-cloth-panel-fixed-nx for ny (same vertex count per panel, not cell cm).",
+    )
+    parser.add_argument(
+        "--demo-cloth-panel-rng-entropy",
+        action="store_true",
+        help=(
+            "Sample each world's procedural cloth panel NumPy RNG seed from OS entropy at "
+            "startup (different cloth geometry/stiffness each run; JSON still records the "
+            "drawn seeds)."
         ),
     )
 
@@ -358,8 +467,22 @@ def demo_scenario_from_args(args, base: DemoScenarioConfig | None = None) -> Dem
     extra: dict = {}
     if cloth_dens is not None:
         extra["cloth_mesh_density_scale"] = float(cloth_dens)
+    if getattr(args, "demo_cloth_panel_rng_entropy", False):
+        extra["cloth_panel_rng_use_entropy"] = True
+    fn = getattr(args, "demo_cloth_panel_fixed_nx", None)
+    gn = getattr(args, "demo_cloth_panel_fixed_ny", None)
+    _validate_fixed_cloth_panel_grid(fn, gn)
+    if fn is not None:
+        extra["cloth_panel_fixed_grid_nx"] = fn
+        extra["cloth_panel_fixed_grid_ny"] = gn
+    h = getattr(args, "demo_cloth_panel_target_cell_cm", None)
+    if h is not None:
+        x = float(h)
+        if not math.isfinite(x) or x <= 0.0:
+            raise ValueError("--demo-cloth-panel-target-cell-cm must be a positive finite float.")
+        extra["cloth_panel_target_cell_cm"] = x
 
-    return replace(
+    cfg = replace(
         b,
         world_count=world_count,
         grid_rows=grid_rows,
@@ -369,6 +492,8 @@ def demo_scenario_from_args(args, base: DemoScenarioConfig | None = None) -> Dem
         write_metadata_json=write_metadata_json,
         **extra,
     )
+    _validate_demo_cloth_panel_resolution(cfg)
+    return cfg
 
 
 def demo_arm_pool() -> list[DemoAssetSpec]:
@@ -489,6 +614,7 @@ class Example:
     def __init__(self, viewer, args, *, demo_config: DemoScenarioConfig | None = None):
         self.demo_config = demo_config if demo_config is not None else DEMO_SCENARIO
         cfg = self.demo_config
+        _validate_demo_cloth_panel_resolution(cfg)
         if cfg.grid_rows * cfg.grid_cols != cfg.world_count:
             raise ValueError(
                 f"grid_rows * grid_cols ({cfg.grid_rows * cfg.grid_cols}) must equal "
@@ -563,6 +689,14 @@ class Example:
         self._demo_fps_frame_count = 0
 
         self.world_offsets = self._build_world_offsets()
+
+        if cfg.cloth_panel_rng_use_entropy and self.add_cloth:
+            self._cloth_panel_numpy_seeds = [
+                int.from_bytes(secrets.token_bytes(8), "little", signed=False)
+                for _ in range(self.num_envs)
+            ]
+        else:
+            self._cloth_panel_numpy_seeds = None
 
         if self.add_robot:
             self._add_robot_worlds()
@@ -774,7 +908,10 @@ class Example:
             self.table_shape_indices.append(shape_idx)
 
     def _make_panel_mesh(self, env_id: int):
-        cloth_rng_seed = int(1000 + env_id)
+        if self.demo_config.cloth_panel_rng_use_entropy and self._cloth_panel_numpy_seeds is not None:
+            cloth_rng_seed = int(self._cloth_panel_numpy_seeds[env_id])
+        else:
+            cloth_rng_seed = int(1000 + env_id)
         rng = np.random.default_rng(cloth_rng_seed)
         cfg = self.demo_config
 
@@ -785,9 +922,25 @@ class Example:
         width = float(rng.uniform(12.0, 56.0))
         height = float(rng.uniform(12.0, 56.0))
 
-        (nx_lo, nx_hi), (ny_lo, ny_hi) = demo_scaled_cloth_grid_bounds(cfg)
-        nx = int(rng.integers(nx_lo, nx_hi + 1))
-        ny = int(rng.integers(ny_lo, ny_hi + 1))
+        (nx_lo_b, nx_hi), (ny_lo_b, ny_hi) = demo_scaled_cloth_grid_bounds(cfg)
+        s = float(cfg.cloth_mesh_density_scale)
+
+        target_cell_effective_cm: float | None = None
+        if cfg.cloth_panel_target_cell_cm is not None:
+            te = float(cfg.cloth_panel_target_cell_cm) / s
+            target_cell_effective_cm = te
+            nx = max(4, min(nx_hi, int(round(width / te)) + 1))
+            ny = max(4, min(ny_hi, int(round(height / te)) + 1))
+            nx_lo, nx_hi_meta, ny_lo, ny_hi_meta = nx, nx, ny, ny
+        elif cfg.cloth_panel_fixed_grid_nx is not None:
+            nx = max(4, int(round(cfg.cloth_panel_fixed_grid_nx * s)))
+            ny = max(4, int(round(cfg.cloth_panel_fixed_grid_ny * s)))
+            nx_lo, nx_hi_meta, ny_lo, ny_hi_meta = nx, nx, ny, ny
+        else:
+            nx = int(rng.integers(nx_lo_b, nx_hi + 1))
+            ny = int(rng.integers(ny_lo_b, ny_hi + 1))
+            nx_lo, nx_hi_meta = nx_lo_b, nx_hi
+            ny_lo, ny_hi_meta = ny_lo_b, ny_hi
 
         if shape_mode == 0:  # rectangle
             c00 = np.array([-width * 0.5, -height * 0.5, 0.0], dtype=np.float32)
@@ -862,6 +1015,13 @@ class Example:
             "edge_ke": edge_ke,
             "edge_kd": edge_kd,
             "density": density,
+            "cloth_panel_grid_fixed": cfg.cloth_panel_fixed_grid_nx is not None,
+            "cloth_panel_fixed_grid_nx_config": cfg.cloth_panel_fixed_grid_nx,
+            "cloth_panel_fixed_grid_ny_config": cfg.cloth_panel_fixed_grid_ny,
+            "cloth_panel_target_cell_cm_config": cfg.cloth_panel_target_cell_cm,
+            "cloth_panel_target_cell_effective_cm": target_cell_effective_cm,
+            "cloth_panel_approx_mean_cell_width_cm": width / max(1, nx - 1),
+            "cloth_panel_approx_mean_cell_height_cm": height / max(1, ny - 1),
             "particle_radius": particle_radius,
             "target_center_cm": target_center.tolist(),
             "target_center_offset_from_world_origin_cm": [20.0, -50.0, 31.5],
@@ -877,8 +1037,8 @@ class Example:
             "cloth_mesh_density_scale": cfg.cloth_mesh_density_scale,
             "cloth_grid_nx_bounds_config": [cfg.cloth_grid_nx_min, cfg.cloth_grid_nx_max],
             "cloth_grid_ny_bounds_config": [cfg.cloth_grid_ny_min, cfg.cloth_grid_ny_max],
-            "cloth_grid_nx_sample_bounds_effective": [nx_lo, nx_hi],
-            "cloth_grid_ny_sample_bounds_effective": [ny_lo, ny_hi],
+            "cloth_grid_nx_sample_bounds_effective": [nx_lo, nx_hi_meta],
+            "cloth_grid_ny_sample_bounds_effective": [ny_lo, ny_hi_meta],
         }
 
         return verts, indices, tri_ke, tri_ka, tri_kd, edge_ke, edge_kd, density, particle_radius, cloth_meta
@@ -1289,7 +1449,12 @@ class Example:
             "sim": self._build_demo_sim_export_dict(),
             "robot": robot_block,
             "determinism_notes": {
-                "cloth_rng": "numpy.random.Generator(PCG64) seed = 1000 + world_index",
+                "cloth_rng": (
+                    "numpy.random.Generator(PCG64); per-world seed from secrets.token_bytes(8) "
+                    "at Example construction (cloth_panel_rng_use_entropy=True)"
+                    if self.demo_config.cloth_panel_rng_use_entropy
+                    else "numpy.random.Generator(PCG64) seed = 1000 + world_index"
+                ),
                 "asset_assignment_rng": (
                     f"numpy.random.Generator(PCG64) seed = {self.demo_config.asset_assignment_seed}"
                     if self.demo_config.asset_assignment_seed is not None

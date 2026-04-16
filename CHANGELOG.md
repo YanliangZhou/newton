@@ -4,6 +4,9 @@
 
 ### Added
 
+- Add `--demo-cloth-panel-rng-entropy` and `DemoScenarioConfig.cloth_panel_rng_use_entropy` on `training_v1_0` to sample procedural cloth panel RNG seeds from OS entropy each process start (optional; default remains `1000 + world_index`).
+- Add `--demo-cloth-panel-fixed-nx` / `--demo-cloth-panel-fixed-ny` and `DemoScenarioConfig.cloth_panel_fixed_grid_nx` / `cloth_panel_fixed_grid_ny` on `training_v1_0` for the same vertex counts on every panel (optional; default remains random `nx`/`ny` per panel).
+- Add `--demo-cloth-panel-target-cell-cm` and `DemoScenarioConfig.cloth_panel_target_cell_cm` on `training_v1_0` to choose `nx`/`ny` from each panel's width/height so mean edge spacing is approximately uniform (optional; incompatible with fixed nx/ny).
 - Add repeatable `--warp-config KEY=VALUE` CLI option for overriding `warp.config` attributes when running examples
 - Add 3D texture-based SDF, replacing NanoVDB volumes in the mesh-mesh collision pipeline for improved performance and CPU compatibility.
 - Parse URDF joint `limit effort="..."` values and propagate them to imported revolute and prismatic joint `effort_limit` settings
