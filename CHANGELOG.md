@@ -4,9 +4,9 @@
 
 ### Added
 
-- Add `--demo-cloth-panel-rng-entropy` and `DemoScenarioConfig.cloth_panel_rng_use_entropy` on `training_v1_1` to sample procedural cloth panel RNG seeds from OS entropy each process start (optional; default remains `1000 + world_index`).
-- Add `--demo-cloth-panel-fixed-nx` / `--demo-cloth-panel-fixed-ny` and `DemoScenarioConfig.cloth_panel_fixed_grid_nx` / `cloth_panel_fixed_grid_ny` on `training_v1_1` for the same vertex counts on every panel (optional; default remains random `nx`/`ny` per panel).
-- Add `--demo-cloth-panel-target-cell-cm` and `DemoScenarioConfig.cloth_panel_target_cell_cm` on `training_v1_1` to choose `nx`/`ny` from each panel's width/height so mean edge spacing is approximately uniform (optional; incompatible with fixed nx/ny).
+- Add `--demo-cloth-panel-rng-entropy` and `DemoScenarioConfig.cloth_panel_rng_use_entropy` on `training_v1_2` to sample procedural cloth panel RNG seeds from OS entropy each process start (optional; default remains `1000 + world_index`).
+- Add `--demo-cloth-panel-fixed-nx` / `--demo-cloth-panel-fixed-ny` and `DemoScenarioConfig.cloth_panel_fixed_grid_nx` / `cloth_panel_fixed_grid_ny` on `training_v1_2` for the same vertex counts on every panel (optional; default remains random `nx`/`ny` per panel).
+- Add `--demo-cloth-panel-target-cell-cm` and `DemoScenarioConfig.cloth_panel_target_cell_cm` on `training_v1_2` to choose `nx`/`ny` from each panel's width/height so mean edge spacing is approximately uniform (optional; incompatible with fixed nx/ny).
 - Add repeatable `--warp-config KEY=VALUE` CLI option for overriding `warp.config` attributes when running examples
 - Add 3D texture-based SDF, replacing NanoVDB volumes in the mesh-mesh collision pipeline for improved performance and CPU compatibility.
 - Parse URDF joint `limit effort="..."` values and propagate them to imported revolute and prismatic joint `effort_limit` settings
@@ -42,7 +42,9 @@
 
 ### Changed
 
-- Rename cloth batch example module to `example_training_v1_1` (run as `python -m newton.examples training_v1_1`). Migrate `ClothFrankaBatchDemoApi` to `TrainingDemoV1_1Api` and `run_cloth_franka_batch_demo` to `run_training_v1_1_demo`; JSON schema ids and default metadata basename updated accordingly. Replace `CLOTH_FRANKA_BATCH_DEMO.md` with `TRAINING_V1_1_DEMO.md`.
+- Replace cloth training docs file `TRAINING_V1_2_DEMO.md` with `TRAINING_V1_2_README.md` (includes v1.1 vs v1.2 version notes at the end).
+- `training_v1_2` terminal `loop FPS` is measured with `wp.synchronize()` after each `step` and `render` so the printed rate reflects completed GPU work (label: `loop FPS (GPU-sync wall)`); expect lower numbers than async launch timing.
+- Promote cloth batch training scenario to **v1.2**: primary module `example_training_v1_2`, CLI `training_v1_2`, `TrainingDemoV1_2Api`, `run_training_v1_2_demo`, default metadata basename `example_training_v1_2_meta.json`, JSON schemas `newton.examples.training_v1_2/world/v3` and `newton.examples.training_v1_2/aggregate/v2`, docs `TRAINING_V1_2_README.md`. Deprecate `example_training_v1_1` / CLI `training_v1_1` (compatibility shim with `DeprecationWarning` on import); migrate from prior `ClothFrankaBatchDemo` / `CLOTH_FRANKA_BATCH_DEMO.md` lineage per earlier releases.
 - Switch mesh-SDF collision from triangle-based gradient descent to edge-based Brent's method to reduce contact jitter
 - Unify heightfield and mesh collision pipeline paths; the separate `heightfield_midphase_kernel` and `shape_pairs_heightfield` buffer are removed in favor of the shared mesh midphase
 - Replace per-shape `Model.shape_heightfield_data` / `Model.heightfield_elevation_data` with compact `Model.shape_heightfield_index` / `Model.heightfield_data` / `Model.heightfield_elevations`, matching the SDF indirection pattern
@@ -70,6 +72,7 @@
 
 ### Deprecated
 
+- Deprecate `newton.examples.cloth.example_training_v1_1`, CLI `training_v1_1`, `TrainingDemoV1_1Api`, and `run_training_v1_1_demo` in favor of `example_training_v1_2`, `training_v1_2`, `TrainingDemoV1_2Api`, and `run_training_v1_2_demo`
 - Deprecate `ModelBuilder.default_body_armature`, the `armature` argument on `ModelBuilder.add_link()` / `ModelBuilder.add_body()`, and USD-authored body armature via `newton:armature` in favor of adding any isotropic artificial inertia directly to `inertia`
 - Deprecate `SensorContact.net_force` in favor of `SensorContact.total_force` and `SensorContact.force_matrix`
 - Deprecate `SensorContact(include_total=...)` in favor of `SensorContact(measure_total=...)`
