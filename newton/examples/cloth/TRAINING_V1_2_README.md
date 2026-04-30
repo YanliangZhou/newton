@@ -6,14 +6,39 @@ Batch of independent worlds (table + procedural cloth + arm per world), optional
 
 Dependencies: `uv sync --extra examples` (or equivalent install).
 
+File placement (if you share only these two files):
+
+- Put `example_training_v1_2.py` in `newton/examples/cloth/`
+- Put `TRAINING_V1_2_README.md` in `newton/examples/cloth/`
+- Then run commands from repository root `newton/`
+
+There are two common viewer modes:
+
+- `gl`: opens an interactive window and displays cloth + robot. No USD/JSON files are written by default.
+- `usd`: headless recording mode. It does not open a GL window, and writes USD + JSON outputs.
+
+For `gl`, run:
+
 ```bash
-uv run --extra examples -m newton.examples training_v1_2 \
-  --viewer usd --demo-no-display \
+python -m newton.examples training_v1_2 \
+  --viewer gl \
+  --demo-world-count 9 --demo-grid-rows 3 --demo-grid-cols 3 \
+  --demo-cloth-panel-target-cell-cm 2.5 \
+  --num-frames 1000
+```
+
+For `usd`, run:
+
+```bash
+python -m newton.examples training_v1_2 \
+  --viewer usd \
   --demo-output-root ./runs \
   --demo-world-count 9 --demo-grid-rows 3 --demo-grid-cols 3 \
   --demo-cloth-panel-target-cell-cm 2.5 \
   --num-frames 1000
 ```
+
+Run the commands from the repository root (`newton/`) so Python can resolve `newton.examples`.
 
 `--demo-output-root` creates `runs/run_<YYYYMMDD>_<HHMMSS>_<pid>/` with `recording.usd`, `example_training_v1_2_meta.json`, and `example_training_v1_2_meta_world_*.json` (see below). Startup logs `[training_v1_2] recording session dir: …`.
 
